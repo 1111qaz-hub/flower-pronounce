@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>花卉英文发音助手</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #f5f5f5;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      padding: 10px;
+    }
+    .container {
+      max-width: 500px;
+      width: 100%;
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 20px 15px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      margin-top: 10px;
+    }
+    h1 {
+      text-align: center;
+      font-size: 22px;
+      margin-bottom: 15px;
+      color: #2E86C1;
+    }
+    .search-box {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 16px;
+      border: 2px solid #ddd;
+      border-radius: 10px;
+      margin-bottom: 15px;
+      outline: none;
+    }
+    .search-box:focus { border-color: #2E86C1; }
+    .item-list {
+      max-height: 55vh;
+      overflow-y: auto;
+      margin-bottom: 15px;
+      border: 1px solid #eee;
+      border-radius: 10px;
+      padding: 5px;
+    }
+    .item-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 8px;
+      border-bottom: 1px solid #f0f0f0;
+      cursor: pointer;
+      transition: background 0.2s;
+      border-radius: 8px;
+    }
+    .item-row:active { background: #e8f4fd; }
+    .item-info {
+      flex: 1;
+      margin-right: 10px;
+    }
+    .item-chinese {
+      font-weight: 600;
+      font-size: 16px;
+      color: #333;
+    }
+    .item-english {
+      font-size: 14px;
+      color: #2E86C1;
+      margin-top: 2px;
+      word-break: break-all;
+    }
+    .no-english {
+      color: #aaa;
+      font-style: italic;
+    }
+    .speak-btn {
+      background: #2E86C1;
+      color: white;
+      border: none;
+      border-radius: 20px;
+      padding: 8px 15px;
+      font-size: 14px;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .speak-btn.slow { background: #e67e22; }
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+    }
+    .controls button {
+      flex: 1;
+      padding: 10px;
+      background: #2E86C1;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      cursor: pointer;
+    }
+    .controls button.slow { background: #e67e22; }
+    .category-sep {
+      background: #f0f0f0;
+      color: #666;
+      font-weight: bold;
+      padding: 8px 10px;
+      border-radius: 6px;
+      margin: 5px 0;
+      font-size: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .cat-speak-btn {
+      background: #aaa;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 4px 10px;
+      font-size: 12px;
+      margin-left: 10px;
+    }
+    .footer {
+      text-align: center;
+      font-size: 12px;
+      color: #999;
+      margin-top: 10px;
+    }
+    .highlight { background: #fff3cd; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>🌸 花卉英文发音助手</h1>
+
+  <input type="text" class="search-box" id="searchBox" placeholder="搜索中文或英文名...">
+
+  <div class="controls">
+    <button id="globalSpeakBtn">🔊 正常朗读</button>
+    <button id="globalSlowBtn" class="slow">🐢 慢速跟读</button>
+  </div>
+
+  <div class="item-list" id="itemList"></div>
+
+  <div class="footer">点击任意条目可快速发音 · 手机浏览器添加至主屏幕</div>
+</div>
+
+<script>
+// ---------- 花卉数据（与 Python 版完全一致） ----------
+const RAW_DATA = `英文名	中文名
+Ornamental Plants 	观赏植物
+Sago Palm	苏铁
+Areca palm	散尾葵
+Bougainvillea spectabilis	三角梅
+Zanzibar Gem	金钱树
+Lucky bamboo	富贵竹
+Lady Palm	大叶棕
+Finger Palm	金山棕
+Bird of Paradise	天堂鸟
+Traveller's Tree	旅人焦
+Camellia japonica	茶花
+Cardboard Palm	墨西哥苏铁
+Spineless Yucca	荷兰铁
+Adam's needle	丝兰
+Chinese fringe flower	红继木
+Dragon Tree	龙血树
+Money Tree	发财树
+Adenium obesum	沙漠玫瑰
+Hoop Pine	南洋杉
+Yew Pine	罗汉松
+Citrus	年桔
+Orange Jasmine	九里香
+Golden Trumpet	黄蝉
+Chinese Perfume Plant	米兰
+Banana Shrub	含笑
+Arabian Jasmine	茉莉
+Zanthoxylum Odorum	胡椒木
+Spider Lily	蜘蛛兰
+Poison Bulb	文殊兰
+Ixora chinensis	龙船花
+Chinese Juniper	龙柏
+
+Philodendron selloum	春羽
+Madagascar jasmine	非洲茉莉
+Pothos	绿萝
+Geranium Aralia	福禄桐
+Song of India	百合竹
+Madagascar Dragon Tree	千年木
+Cassia	肉桂
+Mauritius hemp	万年麻
+Snake Plant	虎皮兰
+Ponytail Palm	酒瓶兰
+Umbrella Tree	鸭脚木
+Frangipani	鸡蛋花
+Sisal	剑麻
+Century Plant	龙舌兰
+China Rose	月季
+River Tea Tree	黄金香柳
+Guzmania	凤梨
+Heteropanax fragrans 	幌伞枫
+
+Ficus 	榕树
+Ficus Bonsai	榕树盆景
+Ficus Cage	榕树笼子
+Ficus Steps 	榕树层形
+Ficus Cone	榕树塔形
+Ficus Ginseng	人参榕
+Ficus Umbrella	榕树伞形
+Ficus benjamina	垂榕
+Indian Laurel Fig	小叶榕
+Ficus altissima	高山榕
+Rubber Fig	橡胶榕
+Sacred Fig, Bo Tree	菩提树
+Long Leaf Fig	柳叶榕
+Fiddle Leaf Fig	琴叶榕
+
+
+ Bonsai 	盆景
+Bougainvillea Spectabilis	三角梅
+Chinese fringe flower	红继木
+Cycas revoluta 	苏铁
+Fukien tea	福建茶
+Japanese White Pine	五针松
+Yew Pine	罗汉松
+Black Pine	黑松
+Zanthoxylum Odorum	胡椒木
+Siberian Elm	榆树
+Norfolk Island Pine	澳洲杉
+Elephant Bush	金枝玉叶
+Annual Baby's Breath	满天星
+Box-leaved Syzygium	赤楠
+Crape myrtle	小叶紫薇
+Orange Jessamine	九里香
+Serissa foetida	六月雪
+Chinese holly	冬青
+Chinese little-leaf box	黄杨
+Ture cypress	真柏
+
+
+
+
+Palms 	棕榈树
+Pygmy Date Palm	针葵
+Chinese Fan Palm	蒲葵
+Bottle Palm	酒瓶椰子
+Foxtail Palm	狐尾椰子
+Fishtail Palm	鱼尾葵
+Royal Palm	大王椰子
+Majesty Palm	国王椰子
+Queen Palm	皇后葵
+Alexander Palm	假槟榔
+Washington Palm	老人葵
+Silver Date Palm	银海枣
+Triangle Palm	三角椰子
+Canary Island Date Palm	加拿列海枣
+Pindo Palm	布迪椰子
+Trachycarpus fortunei 	山棕
+Coconut Palm	海南椰子
+
+
+Tropical Trees	 热带树
+Hong Kong Orchid Tree	红花紫荆
+Queen's Crape-myrtle	大叶紫薇
+Sunshine Tree	黄花槐
+Golden shower senna	腊肠树
+Kassod Tree	铁刀木
+Cassia javanica 	红花决明
+Silk Floss Tree	美人树
+Red Silk Cotton Tree	木棉
+Mango Tree	芒果
+Royal Poinciana	凤凰木
+Jacaranda mimosifolia	蓝花楹
+Sea Hibiscus	黄槿
+African Tulip Tree	火焰木
+Terminalia mantaly	小叶榄仁
+Weeping Bottlebrush	红千层
+Tabebuia chrysantha 	黄花风铃木
+Pink Trumpet Tree	红花风铃木
+Screw Pine	红刺林投
+Cockspur Coral Tree	鸡冠刺桐
+Podocarpus macrophyllus 	罗汉松
+Plumeria rubra	鸡蛋花
+Silk Oak	银桦
+Brachychiton 	佛肚树
+Araucaria cunninghamia	南洋杉
+Camphor Tree	香樟
+Michelia alba	白兰
+
+
+Cold Hardy Trees	耐寒树
+Crape myrtle	小叶紫薇
+Chinese Redbud	紫荆
+Horse Chestnuts	七叶树
+Glossy Privet	大叶女贞
+Silk Tree, Mimosa	合欢
+Ginkgo biloba	银杏
+Rose of Sharon	木槿
+Japanese Cherry	樱花
+Cherry Plum	红叶李
+Saucer Magnolia	二乔玉兰
+Magnolia liliiflora 	红玉兰
+Yulan Magnolia	白玉兰
+Southern Magnolia	广玉兰
+Japanese Maple	红枫
+Chinese Scholar Tree	槐树
+China berry	苦楝
+Chinese Tulip Tree	马褂木
+Catalpa bungei	楸树
+Goldenrain Tree	栾树
+Chinese Parasol Tree	青桐
+London Plane	法国梧桐
+Camphor Tree	香樟
+Sweet Olive	桂花
+Japanese Quince	贴梗海棠
+Malus micromalus 	西府海棠
+
+
+Cactus	仙人掌类
+Golden Barrel	金琥
+Melon Cactus	层云
+Ferocactus horridus	巨鹫玉
+Madagascar Palm	非洲霸王树
+Cacti 	品种球
+African Milk Tree	巴西龙骨
+
+
+Bamboo	竹子
+Buddha's Belly Bamboo	佛肚竹
+Common Bamboo	黄金间碧玉竹
+Bambusa multiplex 	琴丝竹
+Black Bamboo	紫竹
+Golden Bamboo	罗汉竹
+Weaver's Bamboo	青皮竹
+
+
+Gardenings	园艺产品
+Pot 	花盆
+Stone 	石头
+Artificial Flower	仿真花
+Bamboo stick	竹竿
+Wooden stick 	木棍
+Koi 	锦鲤
+
+
+Fruit Trees	水果树
+
+Mango	芒果
+Lichee	荔枝
+Longan	龙眼
+Loquat	枇杷
+Indian Jujube	台湾大青枣
+Grape Vine	葡萄
+Wax Apple	莲雾
+Peach	水蜜桃
+Wampee	黄皮
+Starfruit	杨桃
+Red Pitaya	火龙果
+Apple Guava	番石榴
+Miracle Fruit	神秘果
+Jabuticaba	嘉宝果
+Jack Fruit	菠萝蜜
+Pomelo	柚子
+Lemon	柠檬
+Sweet Orange	橙子
+Common Fig	无花果
+Sapodilla	人心果
+Red Bayberry	杨梅
+Passion Fruit	鸡蛋果
+Pomegranate	石榴
+Rose Apple	水蒲桃`;
+
+const CATEGORIES_EN = new Set([
+  'Ornamental Plants', 'Ficus', 'Bonsai', 'Palms', 'Tropical Trees',
+  'Cold Hardy Trees', 'Cactus', 'Bamboo', 'Gardenings', 'Fruit Trees'
+]);
+
+// 解析数据
+const items = [];
+const lines = RAW_DATA.split('\n').slice(1); // 跳过表头
+lines.forEach(line => {
+  const trimmed = line.trim();
+  if (!trimmed) return;
+  const parts = trimmed.split('\t');
+  let english = '', chinese = '';
+  if (parts.length >= 2) {
+    english = parts[0].trim();
+    chinese = parts[1].trim();
+  } else {
+    chinese = parts[0].trim();
+  }
+  if (!chinese) return;
+  const isCat = CATEGORIES_EN.has(english);
+  items.push({ chinese, english, isCat });
+});
+
+// 当前选中的条目索引
+let selectedIndex = -1;
+
+// ---------- 语音功能 ----------
+function getEnglishVoice() {
+  const voices = speechSynthesis.getVoices();
+  // 优先选择英文语音（en-US, en-GB, en-AU 等）
+  let voice = voices.find(v => v.lang.startsWith('en-US'));
+  if (!voice) voice = voices.find(v => v.lang.startsWith('en'));
+  return voice || voices[0]; // 找不到就用默认
+}
+
+function speakText(text, slow = false) {
+  if (!text) return;
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.voice = getEnglishVoice();
+  utterance.rate = slow ? 0.7 : 0.9;
+  utterance.pitch = 1;
+  speechSynthesis.cancel(); // 停止当前朗读
+  speechSynthesis.speak(utterance);
+}
+
+// ---------- 界面渲染 ----------
+const itemList = document.getElementById('itemList');
+const searchBox = document.getElementById('searchBox');
+
+function renderList(filterText = '') {
+  itemList.innerHTML = '';
+  const lowerFilter = filterText.toLowerCase();
+  items.forEach((item, index) => {
+    // 过滤
+    if (lowerFilter) {
+      const match = item.chinese.includes(lowerFilter) ||
+                    (item.english && item.english.toLowerCase().includes(lowerFilter));
+      if (!match) return;
+    }
+
+    if (item.isCat) {
+      // 分类标题
+      const catDiv = document.createElement('div');
+      catDiv.className = 'category-sep';
+      catDiv.innerHTML = `📁 ${item.chinese} <span style="font-weight:normal">(${item.english})</span>`;
+      if (item.english) {
+        const catSpeakBtn = document.createElement('button');
+        catSpeakBtn.className = 'cat-speak-btn';
+        catSpeakBtn.textContent = '🔊';
+        catSpeakBtn.onclick = (e) => {
+          e.stopPropagation();
+          speakText(item.english);
+        };
+        catDiv.appendChild(catSpeakBtn);
+      }
+      itemList.appendChild(catDiv);
+    } else {
+      // 具体品种
+      const row = document.createElement('div');
+      row.className = 'item-row' + (index === selectedIndex ? ' highlight' : '');
+      row.onclick = () => {
+        selectedIndex = index;
+        renderList(searchBox.value); // 刷新高亮
+        if (item.english) {
+          speakText(item.english);
+        }
+      };
+
+      const infoDiv = document.createElement('div');
+      infoDiv.className = 'item-info';
+      infoDiv.innerHTML = `
+        <div class="item-chinese">${item.chinese}</div>
+        <div class="item-english ${!item.english ? 'no-english' : ''}">${item.english || '(暂无英文名)'}</div>
+      `;
+      row.appendChild(infoDiv);
+
+      if (item.english) {
+        const btn = document.createElement('button');
+        btn.className = 'speak-btn';
+        btn.textContent = '🔊';
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          selectedIndex = index;
+          renderList(searchBox.value);
+          speakText(item.english);
+        };
+        row.appendChild(btn);
+      }
+      itemList.appendChild(row);
+    }
+  });
+}
+
+// 搜索框事件
+searchBox.addEventListener('input', (e) => {
+  renderList(e.target.value);
+});
+
+// 底部全局按钮
+document.getElementById('globalSpeakBtn').addEventListener('click', () => {
+  if (selectedIndex >= 0 && selectedIndex < items.length) {
+    const item = items[selectedIndex];
+    if (item.english) speakText(item.english, false);
+  }
+});
+document.getElementById('globalSlowBtn').addEventListener('click', () => {
+  if (selectedIndex >= 0 && selectedIndex < items.length) {
+    const item = items[selectedIndex];
+    if (item.english) speakText(item.english, true);
+  }
+});
+
+// 初始加载
+renderList();
+
+// 预加载语音（部分浏览器需要）
+window.speechSynthesis.onvoiceschanged = () => {
+  getEnglishVoice();
+};
+</script>
+</body>
+</html>
